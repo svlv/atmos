@@ -2,17 +2,22 @@
 
 import picamera
 import argparse
-from datetime import datetime
+from datetime import datetime, date
 import socket
+import time
+import os
 
-def det_default_filename():
+def get_default_filename():
     now = datetime.now()
     date_str = now.strftime("%Y%m%d")
     time_str = now.strftime("%H%M%S")
     return "_".join(["Atmos", date_str, time_str])
 
 def get_default_video_filename():
-    return det_default_filename() + ".h264"
+    return get_default_filename() + ".h264"
+
+def get_defailt_image_filename():
+    return get_default_filename() + ".jpg"
 
 def record_to_file(camera, filename, duration):
     stream = open(filename, "wb")
@@ -32,6 +37,17 @@ def record(camera, stream, duration):
     camera.wait_recording(duration)
     camera.stop_recording()
 
+def timelapse(camera, period):
+    today = date.today()
+    dir_name = '_'.join(['Atmos', 'Timelapse', today.strftime('%Y%m%d')])
+    if not os.path.isdir(dir_name):
+      os.mkdir(dir_name)
+    os.chdir(dir_name)
+
+    camera.start_preview()
+    for filename in camera.capture_continuous('{timestamp:%H%M}.jpg'):
+        time.sleep(period)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--action", default="record-to-file")
@@ -43,13 +59,13 @@ def main():
     camera = picamera.PiCamera()
     camera.resolution = (640, 480)
     camera.awb_mode = 'auto'
-    
-    #camera.framerate = 24
 
     if args.action == "record-to-file":
         record_to_file(camera, args.output, args.duration)
     elif args.action == "record-to-socket":
         record_to_sock(camera, args.port, args.duration)
+    elif args.action == "timelapse":
+        timelapse(camera, 60)
 
 if __name__ == '__main__':
     main()
